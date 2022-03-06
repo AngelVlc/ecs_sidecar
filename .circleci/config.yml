@@ -1,0 +1,53 @@
+version: 2.1
+
+workflows:
+    version: 2
+    build_and_test:
+      jobs:
+        - test
+        - deploy:
+            requires:
+              - test
+            filters:
+              branches:
+                only: master
+
+commands:
+  install_terraform:
+    steps:
+    - run: curl -sLo terraform/terraform.zip https://releases.hashicorp.com/terraform/1.1.6/terraform_1.1.6_linux_amd64.zip
+    - run: unzip terraform/terraform.zip -d terraform
+  init_terraform:
+    steps:
+    - run: cd terraform && ./terraform init -input=false
+  plan_or_apply_terraform:
+    parameters:
+      command:
+        description: the terraform command to execute
+        type: string
+    steps:
+    - run: cd terraform && ./terraform <<parameters.command>>
+
+jobs:
+  test:
+    machine:
+      image: ubuntu-2004:202111-01
+    steps:
+      - checkout
+      - install_terraform
+      - init_terraform
+      - plan_or_apply_terraform:
+          command: plan
+  deploy:
+    machine:
+      image: ubuntu-2004:202111-01
+    steps:
+      - checkout
+      - install_terraform
+      - init_terraform
+      - plan_or_apply_terraform:
+          command: apply -input=false -auto-approve
+      - run: aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - run: docker build -t ecs-sidecar --target release .
+      - run: docker tag ecs-sidecar:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/ecs-sidecar:latest
+      - run: docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/ecs-sidecar:latest
