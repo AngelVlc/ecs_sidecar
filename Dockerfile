@@ -6,7 +6,7 @@ WORKDIR $APP
 RUN apk add -u build-base
 
 COPY go.mod $APP
-# COPY go.sum $APP
+COPY go.sum $APP
 
 RUN go mod download
 
