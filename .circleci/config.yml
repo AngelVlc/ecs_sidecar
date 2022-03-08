@@ -51,3 +51,4 @@ jobs:
       - run: docker build -t ecs-sidecar --target release .
       - run: docker tag ecs-sidecar:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/ecs-sidecar:latest
       - run: docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/ecs-sidecar:latest
+      - run: IMAGES_TO_DELETE=$( aws ecr list-images --repository-name ecs-sidecar --filter "tagStatus=UNTAGGED" --query 'imageIds[*]' --output json ) && aws ecr batch-delete-image --repository-name ecs-sidecar --image-ids "$IMAGES_TO_DELETE" || true
