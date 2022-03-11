@@ -14,7 +14,7 @@ COPY . $APP
 
 FROM base as build
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /go/bin/app ./main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /go/bin/app .
 
 FROM alpine as release
 

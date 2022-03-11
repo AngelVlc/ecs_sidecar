@@ -34,6 +34,8 @@ jobs:
       image: ubuntu-2004:202111-01
     steps:
       - checkout
+      - run: docker build --target base -t base .
+      - run: docker run --rm base go test ./...
       - install_terraform
       - init_terraform
       - plan_or_apply_terraform:
