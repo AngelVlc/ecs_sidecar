@@ -23,6 +23,10 @@ func main() {
 	subdomain := os.Getenv("SUBDOMAIN")
 	log.Printf("Subdomain: '%v'\n", subdomain)
 
+	for _, item := range os.Environ() {
+		log.Println(item)
+	}
+
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		log.Fatalf("error loading the default config: %v", err)
@@ -57,7 +61,7 @@ func getTaskEni(ctx context.Context, ecsApi EcsApi, clusterName string) (string,
 	if err != nil {
 		return "", fmt.Errorf("error listing tasks of clusterName '%v': %v", clusterName, err)
 	}
-	log.Printf("Found tasks in cluster %v: %v\n", clusterName, len(listTaskOutput.TaskArns))
+	log.Printf("Found %v tasks in cluster %v\n", len(listTaskOutput.TaskArns), clusterName)
 
 	taskArn := listTaskOutput.TaskArns[0]
 	log.Printf("First tasks arn: '%v'\n", taskArn)
@@ -95,7 +99,11 @@ func getPublicIpFromTaskEni(ctx context.Context, ec2Api Ec2Api, taskEni string) 
 		return "", fmt.Errorf("error describing network interface with id '%v': %v", taskEni, err)
 	}
 
-	return *describeNetworkInterfacesOutput.NetworkInterfaces[0].Association.PublicIp, nil
+	publicIp := *describeNetworkInterfacesOutput.NetworkInterfaces[0].Association.PublicIp
+
+	log.Printf("Public ip: %v\n", publicIp)
+
+	return publicIp, nil
 }
 
 func changeRoute53RecordSet(ctx context.Context, route53Api Route53Api, subdomain string, publicIp string) (route53Types.ChangeStatus, error) {
