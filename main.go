@@ -57,7 +57,7 @@ func getTaskEni(ctx context.Context, ecsApi EcsApi, clusterName string) (string,
 	if err != nil {
 		return "", fmt.Errorf("error listing tasks of clusterName '%v': %v", clusterName, err)
 	}
-	log.Printf("Found tasks: %v\n", len(listTaskOutput.TaskArns))
+	log.Printf("Found tasks in cluster %v: %v\n", clusterName, len(listTaskOutput.TaskArns))
 
 	taskArn := listTaskOutput.TaskArns[0]
 	log.Printf("First tasks arn: '%v'\n", taskArn)
@@ -71,8 +71,6 @@ func getTaskEni(ctx context.Context, ecsApi EcsApi, clusterName string) (string,
 	if err != nil {
 		return "", fmt.Errorf("error describing task with arn '%v': %v", taskArn, err)
 	}
-
-	log.Printf("Found %v tasks'\n", len(describeTasksOutput.Tasks))
 
 	for _, attachment := range describeTasksOutput.Tasks[0].Attachments {
 		for _, detail := range attachment.Details {
