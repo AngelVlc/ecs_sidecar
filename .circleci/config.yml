@@ -49,6 +49,7 @@ jobs:
       - init_terraform
       - plan_or_apply_terraform:
           command: apply -input=false -auto-approve
+      - run: echo 'export AWS_ACCOUNT_ID=`aws sts get-caller-identity --query "Account" --output text`' >> $BASH_ENV
       - run: aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
       - run: docker build -t ecs-sidecar --target release .
       - run: docker tag ecs-sidecar:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/ecs-sidecar:latest
