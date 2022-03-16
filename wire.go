@@ -63,6 +63,24 @@ func initMockedRoute53Api() Route53Api {
 	return nil
 }
 
+func InitMetadataEndpointClient() MetadataEndpointClient {
+	if inTestingMode() {
+		return initMockedMetadataEndpointClient()
+	} else {
+		return initRealMetadataEndpointClient()
+	}
+}
+
+func initRealMetadataEndpointClient() MetadataEndpointClient {
+	wire.Build(RealMetadataEndpointClientSet)
+	return nil
+}
+
+func initMockedMetadataEndpointClient() MetadataEndpointClient {
+	wire.Build(MockedMetadataEndpointClientSet)
+	return nil
+}
+
 func inTestingMode() bool {
 	return len(os.Getenv("TESTING")) > 0
 }
@@ -95,4 +113,14 @@ var MockedRoute53ApiSet = wire.NewSet(
 var AwsRoute53ApiSet = wire.NewSet(
 	NewAwsRoute53Api,
 	wire.Bind(new(Route53Api), new(*AwsRoute53Api)),
+)
+
+var MockedMetadataEndpointClientSet = wire.NewSet(
+	NewMockedMetadataEndpointClient,
+	wire.Bind(new(MetadataEndpointClient), new(*MockedMetadataEndpointClient)),
+)
+
+var RealMetadataEndpointClientSet = wire.NewSet(
+	NewRealMetadataEndpointClient,
+	wire.Bind(new(MetadataEndpointClient), new(*RealMetadataEndpointClient)),
 )

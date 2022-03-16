@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"testing"
 
@@ -22,54 +26,42 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func Test_GetTaskEni_ListTasks_Error(t *testing.T) {
-	ctx := context.TODO()
-	mockedEcsApi := NewMockedEcsApi()
+func Test_GetCurrentTaskArn_RequestError(t *testing.T) {
+	mockedMetadataEndpointClient := NewMockedMetadataEndpointClient()
+	os.Setenv("ECS_CONTAINER_METADATA_URI_V4", "http://endpointUrl")
 
-	mockedEcsApi.On("ListTasks", ctx, &ecs.ListTasksInput{Cluster: aws.String("cluster")}).Return(nil, fmt.Errorf("some error"))
+	mockedMetadataEndpointClient.On("Get", "http://endpointUrl/task").Return(nil, fmt.Errorf("some error"))
 
-	result, err := getTaskEni(ctx, mockedEcsApi, "cluster")
+	result, err := getCurrentTaskArn(mockedMetadataEndpointClient)
 
 	assert.Empty(t, result)
-	assert.EqualError(t, err, "error listing tasks of clusterName 'cluster': some error")
+	assert.EqualError(t, err, "error requesting metadata: some error")
 
-	mockedEcsApi.AssertExpectations(t)
+	mockedMetadataEndpointClient.AssertExpectations(t)
 }
 
-func Test_GetTaskEni_DescribeTasks_Error(t *testing.T) {
-	ctx := context.TODO()
-	mockedEcsApi := NewMockedEcsApi()
+func Test_GetCurrentTaskArn_Ok(t *testing.T) {
+	mockedMetadataEndpointClient := NewMockedMetadataEndpointClient()
+	os.Setenv("ECS_CONTAINER_METADATA_URI_V4", "http://endpointUrl")
 
-	listOutput := &ecs.ListTasksOutput{
-		TaskArns: []string{"taskArn"},
+	responseJson, _ := json.Marshal(&taskMetadata{TaskARN: "taskArn"})
+	response := http.Response{
+		Body: ioutil.NopCloser(bytes.NewReader(responseJson)),
 	}
 
-	mockedEcsApi.On("ListTasks", ctx, &ecs.ListTasksInput{Cluster: aws.String("cluster")}).Return(listOutput, nil)
+	mockedMetadataEndpointClient.On("Get", "http://endpointUrl/task").Return(&response, nil)
 
-	describeTasksInput := &ecs.DescribeTasksInput{
-		Cluster: aws.String("cluster"),
-		Tasks:   []string{"taskArn"},
-	}
+	result, err := getCurrentTaskArn(mockedMetadataEndpointClient)
 
-	mockedEcsApi.On("DescribeTasks", ctx, describeTasksInput).Return(nil, fmt.Errorf("some error"))
+	assert.Equal(t, "taskArn", result)
+	assert.Nil(t, err)
 
-	result, err := getTaskEni(ctx, mockedEcsApi, "cluster")
-
-	assert.Empty(t, result)
-	assert.EqualError(t, err, "error describing task with arn 'taskArn': some error")
-
-	mockedEcsApi.AssertExpectations(t)
+	mockedMetadataEndpointClient.AssertExpectations(t)
 }
 
 func Test_GetTaskEni_DescribeTasks_EniNotFound(t *testing.T) {
 	ctx := context.TODO()
 	mockedEcsApi := NewMockedEcsApi()
-
-	listOutput := &ecs.ListTasksOutput{
-		TaskArns: []string{"taskArn"},
-	}
-
-	mockedEcsApi.On("ListTasks", ctx, &ecs.ListTasksInput{Cluster: aws.String("cluster")}).Return(listOutput, nil)
 
 	describeTasksInput := &ecs.DescribeTasksInput{
 		Cluster: aws.String("cluster"),
@@ -84,7 +76,7 @@ func Test_GetTaskEni_DescribeTasks_EniNotFound(t *testing.T) {
 
 	mockedEcsApi.On("DescribeTasks", ctx, describeTasksInput).Return(describeTasksOutput, nil)
 
-	result, err := getTaskEni(ctx, mockedEcsApi, "cluster")
+	result, err := getTaskEni(ctx, mockedEcsApi, "cluster", "taskArn")
 
 	assert.Empty(t, result)
 	assert.EqualError(t, err, "eni not found")
@@ -95,12 +87,6 @@ func Test_GetTaskEni_DescribeTasks_EniNotFound(t *testing.T) {
 func Test_GetTaskEni_DescribeTasks_Ok(t *testing.T) {
 	ctx := context.TODO()
 	mockedEcsApi := NewMockedEcsApi()
-
-	listOutput := &ecs.ListTasksOutput{
-		TaskArns: []string{"taskArn"},
-	}
-
-	mockedEcsApi.On("ListTasks", ctx, &ecs.ListTasksInput{Cluster: aws.String("cluster")}).Return(listOutput, nil)
 
 	describeTasksInput := &ecs.DescribeTasksInput{
 		Cluster: aws.String("cluster"),
@@ -126,7 +112,7 @@ func Test_GetTaskEni_DescribeTasks_Ok(t *testing.T) {
 
 	mockedEcsApi.On("DescribeTasks", ctx, describeTasksInput).Return(describeTasksOutput, nil)
 
-	result, err := getTaskEni(ctx, mockedEcsApi, "cluster")
+	result, err := getTaskEni(ctx, mockedEcsApi, "cluster", "taskArn")
 
 	assert.Equal(t, "taskEni", result)
 	assert.Nil(t, err)

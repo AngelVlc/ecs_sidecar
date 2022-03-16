@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -13,6 +14,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/route53"
 	route53Types "github.com/aws/aws-sdk-go-v2/service/route53/types"
 )
+
+type taskMetadata struct {
+	TaskARN string
+}
 
 func main() {
 	ctx := context.TODO()
@@ -32,9 +37,16 @@ func main() {
 		log.Fatalf("error loading the default config: %v", err)
 	}
 
+	metadataEndpointClient := InitMetadataEndpointClient()
+
+	taskArn, err := getCurrentTaskArn(metadataEndpointClient)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
 	ecsApi := InitEcsApi(cfg)
 
-	eni, err := getTaskEni(ctx, ecsApi, clusterName)
+	eni, err := getTaskEni(ctx, ecsApi, clusterName, taskArn)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -56,16 +68,29 @@ func main() {
 	log.Printf("Change Route53 recordset status: %v\n", status)
 }
 
-func getTaskEni(ctx context.Context, ecsApi EcsApi, clusterName string) (string, error) {
-	listTaskOutput, err := ecsApi.ListTasks(ctx, &ecs.ListTasksInput{Cluster: aws.String(clusterName)})
+func getCurrentTaskArn(client MetadataEndpointClient) (string, error) {
+	url := os.Getenv("ECS_CONTAINER_METADATA_URI_V4") + "/task"
+
+	resp, err := client.Get(url)
 	if err != nil {
-		return "", fmt.Errorf("error listing tasks of clusterName '%v': %v", clusterName, err)
+		return "", fmt.Errorf("error requesting metadata: %v", err)
 	}
-	log.Printf("Found %v tasks in cluster %v\n", len(listTaskOutput.TaskArns), clusterName)
 
-	taskArn := listTaskOutput.TaskArns[0]
-	log.Printf("First tasks arn: '%v'\n", taskArn)
+	metadata := taskMetadata{}
 
+	err = json.NewDecoder(resp.Body).Decode(&metadata)
+	if err != nil {
+		return "", fmt.Errorf("error decoding the metadata request response: %v", err)
+	}
+
+	taskArn := metadata.TaskARN
+
+	log.Printf("Task ARN: %v\n", taskArn)
+
+	return taskArn, nil
+}
+
+func getTaskEni(ctx context.Context, ecsApi EcsApi, clusterName string, taskArn string) (string, error) {
 	describeTasksInput := &ecs.DescribeTasksInput{
 		Cluster: aws.String(clusterName),
 		Tasks:   []string{taskArn},

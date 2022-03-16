@@ -43,6 +43,16 @@ func initMockedRoute53Api() Route53Api {
 	return mockedRoute53Api
 }
 
+func initRealMetadataEndpointClient() MetadataEndpointClient {
+	realMetadataEndpointClient := NewRealMetadataEndpointClient()
+	return realMetadataEndpointClient
+}
+
+func initMockedMetadataEndpointClient() MetadataEndpointClient {
+	mockedMetadataEndpointClient := NewMockedMetadataEndpointClient()
+	return mockedMetadataEndpointClient
+}
+
 // wire.go:
 
 func InitEc2Api(cfg aws.Config) Ec2Api {
@@ -66,6 +76,14 @@ func InitRoute53Api(cfg aws.Config) Route53Api {
 		return initMockedRoute53Api()
 	} else {
 		return initAwsRoute53Api(cfg)
+	}
+}
+
+func InitMetadataEndpointClient() MetadataEndpointClient {
+	if inTestingMode() {
+		return initMockedMetadataEndpointClient()
+	} else {
+		return initRealMetadataEndpointClient()
 	}
 }
 
@@ -95,4 +113,12 @@ var MockedRoute53ApiSet = wire.NewSet(
 
 var AwsRoute53ApiSet = wire.NewSet(
 	NewAwsRoute53Api, wire.Bind(new(Route53Api), new(*AwsRoute53Api)),
+)
+
+var MockedMetadataEndpointClientSet = wire.NewSet(
+	NewMockedMetadataEndpointClient, wire.Bind(new(MetadataEndpointClient), new(*MockedMetadataEndpointClient)),
+)
+
+var RealMetadataEndpointClientSet = wire.NewSet(
+	NewRealMetadataEndpointClient, wire.Bind(new(MetadataEndpointClient), new(*RealMetadataEndpointClient)),
 )
