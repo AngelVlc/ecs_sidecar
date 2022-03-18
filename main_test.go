@@ -126,7 +126,7 @@ func Test_ChangeRoute53RecordSet_ListHostedZones_Error(t *testing.T) {
 
 	mockedRoute53Api.On("ListHostedZones", ctx, &route53.ListHostedZonesInput{}).Return(nil, fmt.Errorf("some error")).Once()
 
-	result, err := changeRoute53RecordSet(ctx, mockedRoute53Api, "subdomain", "ip")
+	result, err := changeRoute53RecordSet(ctx, mockedRoute53Api, "domain", "ip")
 
 	assert.Empty(t, result)
 	assert.EqualError(t, err, "error listing hosted zones: some error")
@@ -155,7 +155,7 @@ func Test_ChangeRoute53RecordSet_ChangeResourceRecordSets_Error(t *testing.T) {
 					Action: "UPSERT",
 					ResourceRecordSet: &route53Types.ResourceRecordSet{
 						Type: route53Types.RRTypeA,
-						Name: aws.String("subdomain"),
+						Name: aws.String("domain"),
 						TTL:  aws.Int64(300),
 						ResourceRecords: []route53Types.ResourceRecord{
 							{Value: aws.String("ip")},
@@ -169,10 +169,10 @@ func Test_ChangeRoute53RecordSet_ChangeResourceRecordSets_Error(t *testing.T) {
 
 	mockedRoute53Api.On("ChangeResourceRecordSets", ctx, changeInput).Return(nil, fmt.Errorf("some error")).Once()
 
-	result, err := changeRoute53RecordSet(ctx, mockedRoute53Api, "subdomain", "ip")
+	result, err := changeRoute53RecordSet(ctx, mockedRoute53Api, "domain", "ip")
 
 	assert.Empty(t, result)
-	assert.EqualError(t, err, "error changing the resouce set in Route53 hosted zone 'hostedZoneId' with subdomain 'subdomain': some error")
+	assert.EqualError(t, err, "error changing the resouce set in Route53 hosted zone 'hostedZoneId' with domain 'domain': some error")
 
 	mockedRoute53Api.AssertExpectations(t)
 }
@@ -198,7 +198,7 @@ func Test_ChangeRoute53RecordSet_ChangeResourceRecordSets_Ok(t *testing.T) {
 					Action: "UPSERT",
 					ResourceRecordSet: &route53Types.ResourceRecordSet{
 						Type: route53Types.RRTypeA,
-						Name: aws.String("subdomain"),
+						Name: aws.String("domain"),
 						TTL:  aws.Int64(300),
 						ResourceRecords: []route53Types.ResourceRecord{
 							{Value: aws.String("ip")},
@@ -218,7 +218,7 @@ func Test_ChangeRoute53RecordSet_ChangeResourceRecordSets_Ok(t *testing.T) {
 
 	mockedRoute53Api.On("ChangeResourceRecordSets", ctx, changeInput).Return(changeResourceRecordSetsOutput, nil).Once()
 
-	result, err := changeRoute53RecordSet(ctx, mockedRoute53Api, "subdomain", "ip")
+	result, err := changeRoute53RecordSet(ctx, mockedRoute53Api, "domain", "ip")
 
 	assert.Equal(t, route53Types.ChangeStatusPending, result)
 	assert.Nil(t, err)

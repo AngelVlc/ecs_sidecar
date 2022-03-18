@@ -20,18 +20,14 @@ type taskMetadata struct {
 }
 
 func main() {
-	ctx := context.TODO()
-
 	clusterName := os.Getenv("CLUSTER_NAME")
-	log.Printf("Cluster name: '%v'\n", clusterName)
-
-	subdomain := os.Getenv("SUBDOMAIN")
-	log.Printf("Subdomain: '%v'\n", subdomain)
+	domain := os.Getenv("DOMAIN")
 
 	for _, item := range os.Environ() {
 		log.Println(item)
 	}
 
+	ctx := context.TODO()
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		log.Fatalf("error loading the default config: %v", err)
@@ -60,7 +56,7 @@ func main() {
 
 	route53Api := InitRoute53Api(cfg)
 
-	status, err := changeRoute53RecordSet(ctx, route53Api, subdomain, publicIp)
+	status, err := changeRoute53RecordSet(ctx, route53Api, domain, publicIp)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -131,7 +127,7 @@ func getPublicIpFromTaskEni(ctx context.Context, ec2Api Ec2Api, taskEni string) 
 	return publicIp, nil
 }
 
-func changeRoute53RecordSet(ctx context.Context, route53Api Route53Api, subdomain string, publicIp string) (route53Types.ChangeStatus, error) {
+func changeRoute53RecordSet(ctx context.Context, route53Api Route53Api, domain string, publicIp string) (route53Types.ChangeStatus, error) {
 	listHostedZonesOutput, err := route53Api.ListHostedZones(ctx, &route53.ListHostedZonesInput{})
 	if err != nil {
 		return "", fmt.Errorf("error listing hosted zones: %v", err)
@@ -146,7 +142,7 @@ func changeRoute53RecordSet(ctx context.Context, route53Api Route53Api, subdomai
 					Action: "UPSERT",
 					ResourceRecordSet: &route53Types.ResourceRecordSet{
 						Type: route53Types.RRTypeA,
-						Name: aws.String(subdomain),
+						Name: aws.String(domain),
 						TTL:  aws.Int64(300),
 						ResourceRecords: []route53Types.ResourceRecord{
 							{Value: aws.String(publicIp)},
@@ -160,7 +156,7 @@ func changeRoute53RecordSet(ctx context.Context, route53Api Route53Api, subdomai
 
 	changeResourceRecordSetsOutput, err := route53Api.ChangeResourceRecordSets(ctx, changeResourceRecordSetsInput)
 	if err != nil {
-		return "", fmt.Errorf("error changing the resouce set in Route53 hosted zone '%v' with subdomain '%v': %v", *hostedZoneId, subdomain, err)
+		return "", fmt.Errorf("error changing the resouce set in Route53 hosted zone '%v' with domain '%v': %v", *hostedZoneId, domain, err)
 	}
 
 	return changeResourceRecordSetsOutput.ChangeInfo.Status, nil
